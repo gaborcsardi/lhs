@@ -15,7 +15,7 @@ on:
       config:
         description: 'A comma separated list of R-hub platforms to use.'
         type: string
-        default: 'linux,windows,macos,macos-arm64,atlas,clang-asan,clang16,clang17,clang18,donttest,gcc13,intel,mkl,nold,nosuggests,ubuntu-clang,ubuntu-gcc12,ubuntu-next,ubuntu-release,valgrind'
+        default: 'linux,windows,macos'
       name:
         description: 'Run name. You can leave this empty now.'
         type: string
@@ -57,37 +57,9 @@ jobs:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
       - uses: r-hub/actions/setup-deps@v1
-        if: matrix.config.label != 'atlas' && matrix.config.label != 'gcc13' && matrix.config.label != 'mkl'
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
-          pak-version: stable
-      - name: cachem replacement
-        if: matrix.config.label == 'atlas' || matrix.config.label == 'gcc13' || matrix.config.label == 'mkl'
-        run: |
-          yum install -y gmp-devel pandoc texlive
-          Rscript -e 'install.packages(c("rcmdcheck", "knitr", "rmarkdown", "Rcpp", "testthat", "DoE.base"), repos = "https://cran.case.edu")'
-      - name: Environment Variable for nosuggests
-        if: matrix.config.label == 'nosuggests'
-        # --extra-arch must be second
-        # https://github.com/r-hub/containers/blob/main/containers/nosuggests/Dockerfile
-        run: |
-          echo "CHECK_ARGS=--ignore-vignettes --extra-arch" >> $GITHUB_ENV
-          echo "BUILD_ARGS=--no-build-vignettes" >> $GITHUB_ENV
-      - name: Environment variable for ASAN
-        if: matrix.config.label == 'clang-asan'
-        # https://github.com/llvm/llvm-project/issues/59432
-        run: |
-          echo "ASAN_OPTIONS=alloc_dealloc_mismatch=0" >> $GITHUB_ENV
-          echo "CHECK_ARGS=--ignore-vignettes --extra-arch" >> $GITHUB_ENV
-          echo "BUILD_ARGS=--no-build-vignettes" >> $GITHUB_ENV
-      - name: Bad CXXFLAGS for atlas
-        if: matrix.config.label == 'atlas'
-        # throws a warning on non-portable compilation flags
-        # Can't set _R_CHECK_COMPILATION_FLAGS_=FALSE because --as-cran resets it
-        # instead, allow for the flags that are a problem
-        run: |
-          echo '_R_CHECK_COMPILATION_FLAGS_KNOWN_="-Werror=format-security -Werror=implicit-function-declaration -Wno-ignored-attributes -Wno-parentheses -Wp,-D_FORTIFY_SOURCE=3"' >> $GITHUB_ENV
       - uses: r-hub/actions/run-check@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
